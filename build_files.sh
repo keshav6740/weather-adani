@@ -3,11 +3,14 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-# Install Python dependencies
-pip install -r requirements.txt
+# --- FIX IS HERE ---
+# Use the specific versioned pip that matches your vercel.json runtime
+echo "Installing dependencies..."
+pip3.9 install -r requirements.txt
 
-# Run Django's collectstatic command
+# --- AND HERE ---
+# Use the specific versioned python for consistency
 echo "Collecting static files..."
-python manage.py collectstatic --no-input
+python3.9 manage.py collectstatic --noinput --clear
 
 echo "Build finished."
