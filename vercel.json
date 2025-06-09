@@ -3,13 +3,10 @@
     {
       "src": "weather_dashboard/wsgi.py",
       "use": "@vercel/python",
-      "config": { "maxLambdaSize": "15mb", "runtime": "python3.9" }
-    },
-    {
-      "src": "build_files.sh",
-      "use": "@vercel/static-build",
       "config": {
-        "distDir": "staticfiles_build"
+        "maxLambdaSize": "15mb",
+        "runtime": "python3.9",
+        "buildCommand": "python manage.py collectstatic --noinput --clear"
       }
     }
   ],
