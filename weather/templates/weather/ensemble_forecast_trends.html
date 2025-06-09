@@ -1,0 +1,704 @@
+{% extends "weather/base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ page_title|default:"Ensemble Forecast Trends" }} - Adani Weather Dashboard
+{% endblock title %}
+
+{% block head_extra %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            margin: 20px auto;
+            padding: 25px;
+            height: 70vh; 
+            width: 95%; 
+            max-width: 1200px; 
+            background-color: #ffffff;
+            border-radius: var(--card-border-radius);
+            box-shadow: var(--adani-card-shadow);
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+        }
+        
+        .chart-container:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--adani-hover-shadow);
+        }
+        
+        .controls-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: white;
+            border-radius: var(--card-border-radius);
+            box-shadow: var(--adani-card-shadow);
+        }
+        
+        .page-title {
+            color: var(--adani-blue);
+            font-weight: 700;
+            margin-bottom: 0;
+            font-size: 1.6rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .page-title .site-name {
+            font-weight: 500;
+            color: #666;
+            font-size: 1.2rem;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            margin-right: 15px;
+            position: relative;
+        }
+        
+        .control-group label {
+            margin-right: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+            color: #555;
+        }
+        
+        .control-group .form-select {
+            min-width: 180px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .control-group .form-select:focus {
+            border-color: var(--adani-blue);
+            box-shadow: 0 0 0 0.25rem rgba(11, 116, 176, 0.25);
+        }
+        
+        .chart-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 10;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            max-width: 80%;
+        }
+        
+        .chart-message.info { 
+            background-color: rgba(240, 249, 255, 0.95); 
+            color: #0c5460; 
+            border: 1px solid #bee5eb; 
+        }
+        
+        .chart-message.error { 
+            background-color: rgba(255, 243, 243, 0.95); 
+            color: #721c24; 
+            border: 1px solid #f5c6cb; 
+        }
+        
+        .chart-message i {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 992px) {
+            .controls-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .control-group {
+                width: 100%;
+                justify-content: space-between;
+                margin-right: 0;
+            }
+            
+            .control-group .form-select {
+                flex-grow: 1;
+            }
+            
+            .page-title {
+                margin-bottom: 15px;
+                text-align: center;
+                justify-content: center;
+            }
+        }
+        
+        /* Enhanced Alert Styling */
+        .alert-info {
+            background: linear-gradient(45deg, var(--adani-blue), var(--adani-purple));
+            color: white;
+            border: none;
+            border-radius: var(--card-border-radius);
+            padding: 20px;
+            box-shadow: var(--adani-card-shadow);
+        }
+        
+        /* Loading Indicator */
+        .loading-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            border-radius: var(--card-border-radius);
+        }
+        
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.25rem;
+        }
+    </style>
+{% endblock head_extra %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="controls-container">
+        <div>
+            <h2 class="page-title">
+                <i class="fas fa-chart-area"></i>
+                {{ page_title|default:"Ensemble Forecast Trends" }}
+                {% if selected_site %}
+                    <span class="site-name">| {{ selected_site.name }}</span>
+                {% endif %}
+            </h2>
+        </div>
+
+        <div class="d-flex flex-wrap">
+            <form method="GET" action="{% url 'weather:ensemble_forecast_trends' %}" id="filterForm" class="d-flex flex-wrap">
+                <div class="control-group">
+                    <label for="site-select">
+                        <i class="fas fa-map-marker-alt me-1"></i> Site:
+                    </label>
+                    <select name="site" id="site-select" class="form-select">
+                        <option value="">Select Site</option>
+                        {% for site_obj in sites %}
+                            <option value="{{ site_obj.id }}" {% if selected_site and selected_site.id == site_obj.id %}selected{% endif %}>
+                                {{ site_obj.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% if selected_site %}
+                <div class="control-group">
+                    <label for="variable-select">
+                        <i class="fas fa-chart-line me-1"></i> Variable:
+                    </label>
+                    <select name="variable" id="variable-select" class="form-select">
+                        {% for var_value, var_display in ensemble_variables %}
+                            <option value="{{ var_value }}" {% if current_variable == var_value %}selected{% endif %}>
+                                {{ var_display }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="forecast-days-select">
+                        <i class="fas fa-calendar-alt me-1"></i> Forecast Days:
+                    </label>
+                    <select name="forecast_days" id="forecast-days-select" class="form-select">
+                        {% for days in forecast_days_options %}
+                            <option value="{{ days }}" {% if current_forecast_days == days %}selected{% endif %}>
+                                {{ days }} day{{ days|pluralize }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="model-filter-select">
+                        <i class="fas fa-filter me-1"></i> Model View:
+                    </label>
+                    <select name="model_filter" id="model-filter-select" class="form-select">
+                        {% for model_val, model_display in ensemble_model_options %}
+                            <option value="{{ model_val }}" {% if current_model_filter == model_val %}selected{% endif %}>
+                                {{ model_display }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <noscript><button type="submit" class="btn btn-primary btn-sm ml-2">View</button></noscript>
+            </form>
+        </div>
+    </div>
+
+    {% if selected_site %}
+        <div class="row">
+            <div class="col-12">
+                <div class="chart-container" id="ensembleChartWrapper">
+                    <canvas id="ensembleTrendChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center mt-4" role="alert">
+            <i class="fas fa-info-circle fa-2x mb-3"></i>
+            <h4 class="alert-heading mb-3">Welcome to Ensemble Forecast Trends</h4>
+            <p>Please select a site from the dropdown above to view its ensemble forecast trends.</p>
+            {% if not sites %}
+                <hr>
+                <p class="mb-0">No active sites are currently configured. Please contact an administrator.</p>
+            {% endif %}
+        </div>
+    {% endif %}
+
+</div>
+{% endblock content %}
+
+{% block scripts_extra %}
+{{ block.super }}
+<script>
+    const IST = 'Asia/Kolkata';
+
+    function formatUTCToISTHourly(utcIsoString) {
+        if (!utcIsoString) return "N/A";
+        const dateObj = new Date(utcIsoString);
+        return dateObj.toLocaleString('en-IN', {
+            timeZone: IST,
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+    }
+
+    let ensembleTrendChartInstance = null;
+    let currentSiteId = null;
+    let currentVariable = '{{ current_variable|escapejs }}';
+    let currentForecastDays = Number('{{ current_forecast_days|escapejs }}');
+    let currentModelFilter = '{{ current_model_filter|escapejs }}';
+    
+    const chartWrapperId = 'ensembleChartWrapper';
+    
+    {% if selected_site and selected_site.id is not None %}
+        currentSiteId = {{ selected_site.id }};
+    {% endif %}
+
+    function displayChartMessageInWrapper(message, isError = true) {
+        const chartContainer = document.getElementById(chartWrapperId);
+        if (!chartContainer) return;
+        
+        const existingMsg = chartContainer.querySelector('.chart-message');
+        if (existingMsg) existingMsg.remove();
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'chart-message ' + (isError ? 'error' : 'info');
+        messageDiv.innerHTML = `
+            <i class="fas ${isError ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <p>${message}</p>
+        `;
+        chartContainer.appendChild(messageDiv);
+        
+        if (isError) console.error("Chart Message:", message); 
+        else console.info("Chart Message:", message);
+    }
+
+    function clearChartMessagesInWrapper() {
+        const chartContainer = document.getElementById(chartWrapperId);
+        if (!chartContainer) return;
+        const existingMsg = chartContainer.querySelector('.chart-message');
+        if (existingMsg) existingMsg.remove();
+    }
+
+    function createOrUpdateEnsembleTrendChart(chartDataFromServer) {
+        clearChartMessagesInWrapper();
+        const canvas = document.getElementById('ensembleTrendChart');
+        if (!canvas) {
+            displayChartMessageInWrapper("Chart canvas 'ensembleTrendChart' not found!", true);
+            return;
+        }
+        const ctx = canvas.getContext('2d');
+
+        if (!chartDataFromServer || !chartDataFromServer.labels || !chartDataFromServer.datasets) {
+            displayChartMessageInWrapper("Received invalid data structure for the chart.", true);
+            if (ensembleTrendChartInstance) {
+                ensembleTrendChartInstance.data.labels = [];
+                ensembleTrendChartInstance.data.datasets = [];
+                ensembleTrendChartInstance.update();
+            }
+            return;
+        }
+
+        // Check if there are any actual datasets to plot (beyond just time labels)
+        const hasActualDataSets = chartDataFromServer.datasets && 
+                                  chartDataFromServer.datasets.length > 0 && 
+                                  chartDataFromServer.datasets.some(ds => ds.data && ds.data.some(val => val !== null));
+
+        if (!hasActualDataSets) {
+            const modelSelectEl = document.getElementById('model-filter-select');
+            const modelNameForMsg = currentModelFilter === 'all' ? 'selected models' 
+                                    : (modelSelectEl ? `'${modelSelectEl.selectedOptions[0].text}'` : `'${currentModelFilter}'`);
+            displayChartMessageInWrapper(`No forecast data available for ${modelNameForMsg} with the selected criteria (Variable: ${currentVariable}).`, false);
+            if (ensembleTrendChartInstance) {
+                ensembleTrendChartInstance.data.labels = chartDataFromServer.labels.map(formatUTCToISTHourly); // Keep time axis
+                ensembleTrendChartInstance.data.datasets = []; // Clear previous datasets
+                ensembleTrendChartInstance.update();
+            }
+            return;
+        }
+        
+        const formattedLabels = chartDataFromServer.labels.map(formatUTCToISTHourly);
+        
+        // Apply custom styling to datasets
+        if (chartDataFromServer.datasets && chartDataFromServer.datasets.length > 0) {
+            chartDataFromServer.datasets.forEach((dataset, index) => {
+                if (dataset.label && dataset.label.includes('Mean')) {
+                    // Style for mean lines
+                    dataset.borderWidth = 3;
+                    dataset.tension = 0.4;
+                    
+                    if (dataset.label.includes('ECMWF')) {
+                        dataset.borderColor = 'rgba(11, 116, 176, 0.9)';
+                        dataset.backgroundColor = 'rgba(11, 116, 176, 0.9)';
+                    } else if (dataset.label.includes('GFS')) {
+                        dataset.borderColor = 'rgba(117, 71, 156, 0.9)';
+                        dataset.backgroundColor = 'rgba(117, 71, 156, 0.9)';
+                    } else if (dataset.label.includes('ICON')) {
+                        dataset.borderColor = 'rgba(189, 56, 97, 0.9)';
+                        dataset.backgroundColor = 'rgba(189, 56, 97, 0.9)';
+                    } else {
+                        // Default styling for other mean lines
+                        dataset.borderColor = 'rgba(6, 128, 168, 0.9)';
+                        dataset.backgroundColor = 'rgba(6, 128, 168, 0.9)';
+                    }
+                    
+                    // Add point styling
+                    dataset.pointRadius = 3;
+                    dataset.pointBackgroundColor = dataset.borderColor;
+                    dataset.pointBorderColor = '#fff';
+                    dataset.pointBorderWidth = 1;
+                    dataset.pointHoverRadius = 6;
+                    dataset.pointHoverBackgroundColor = dataset.borderColor;
+                    dataset.pointHoverBorderColor = '#fff';
+                    dataset.pointHoverBorderWidth = 2;
+                    
+                } else if (dataset.label && dataset.label.startsWith('_')) {
+                    // Style for range/fill areas (min/max)
+                    dataset.borderWidth = 0;
+                    dataset.pointRadius = 0;
+                    
+                    if (dataset.label.includes('ECMWF')) {
+                        dataset.backgroundColor = 'rgba(11, 116, 176, 0.2)';
+                    } else if (dataset.label.includes('GFS')) {
+                        dataset.backgroundColor = 'rgba(117, 71, 156, 0.2)';
+                    } else if (dataset.label.includes('ICON')) {
+                        dataset.backgroundColor = 'rgba(189, 56, 97, 0.2)';
+                    } else {
+                        // Default styling for other range areas
+                        dataset.backgroundColor = 'rgba(6, 128, 168, 0.2)';
+                    }
+                }
+            });
+        }
+        
+        const chartConfigData = {
+            labels: formattedLabels,
+            datasets: chartDataFromServer.datasets
+        };
+
+        if (ensembleTrendChartInstance) {
+            ensembleTrendChartInstance.data = chartConfigData;
+            ensembleTrendChartInstance.options.scales.y.title.text = chartDataFromServer.yAxisTitle || 'Value';
+            ensembleTrendChartInstance.options.scales.y.beginAtZero = currentVariable === 'shortwave_radiation';
+            ensembleTrendChartInstance.update();
+        } else {
+            try {
+                ensembleTrendChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: chartConfigData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { 
+                                grid: {
+                                    color: 'rgba(0,0,0,0.03)',
+                                    lineWidth: 1
+                                },
+                                ticks: { 
+                                    autoSkip: true, 
+                                    maxTicksLimit: 20, 
+                                    font: {
+                                        size: 11
+                                    } 
+                                } 
+                            },
+                            y: {
+                                grid: {
+                                    color: 'rgba(0,0,0,0.03)',
+                                    lineWidth: 1
+                                },
+                                title: { 
+                                    display: true, 
+                                    text: chartDataFromServer.yAxisTitle || 'Value',
+                                    font: {
+                                        weight: 'bold',
+                                        size: 12
+                                    },
+                                    padding: {
+                                        top: 0,
+                                        bottom: 10
+                                    }
+                                },
+                                beginAtZero: currentVariable === 'shortwave_radiation',
+                                ticks: {
+                                    font: {
+                                        size: 11
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                align: 'center',
+                                labels: { 
+                                    font: { 
+                                        size: 12,
+                                        weight: 'bold'
+                                    }, 
+                                    usePointStyle: true, 
+                                    boxWidth: 10, 
+                                    padding: 15,
+                                    filter: function(legendItem, chartData) {
+                                        // Only show legend items that don't start with '_'
+                                        return legendItem.text && !legendItem.text.startsWith('_');
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                titleColor: '#333',
+                                bodyColor: '#333',
+                                borderColor: 'rgba(0, 0, 0, 0.1)',
+                                borderWidth: 1,
+                                padding: 10,
+                                cornerRadius: 8,
+                                boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                                titleFont: {
+                                    weight: 'bold',
+                                    size: 14
+                                },
+                                bodyFont: {
+                                    size: 13
+                                },
+                                callbacks: {
+                                    title: function(tooltipItems) {
+                                        // Use the original UTC label for the tooltip title
+                                        if (tooltipItems.length > 0) {
+                                           const dataIndex = tooltipItems[0].dataIndex;
+                                           return formatUTCToISTHourly(chartDataFromServer.labels[dataIndex]);
+                                        }
+                                        return '';
+                                    },
+                                    label: function(context) {
+                                        // Only show tooltips for the 'Mean' lines (those visible in legend)
+                                                                                if (context.dataset.label && !context.dataset.label.startsWith('_')) {
+                                            let label = context.dataset.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.parsed.y !== null) {
+                                                label += context.parsed.y.toFixed(2);
+                                            }
+                                            return label;
+                                        }
+                                        return null; // Hide tooltip for min/max range datasets
+                                    }
+                                }
+                            }
+                        },
+                        interaction: { 
+                            mode: 'nearest', 
+                            axis: 'x', 
+                            intersect: false 
+                        },
+                        elements: {
+                            line: {
+                                tension: 0.4
+                            },
+                            point: {
+                                radius: 3,
+                                hoverRadius: 6
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                displayChartMessageInWrapper("Error rendering chart: " + e.message, true);
+            }
+        }
+    }
+    
+    async function loadEnsembleTrendData(siteId, variable, forecastDays, modelFilter) {
+        if (!siteId || !variable) {
+            displayChartMessageInWrapper("Please select a site and a variable.", false);
+            if (ensembleTrendChartInstance) { 
+                ensembleTrendChartInstance.destroy(); 
+                ensembleTrendChartInstance = null; 
+            }
+            return;
+        }
+
+        // Show loading indicator
+        const chartContainer = document.getElementById(chartWrapperId);
+        if (chartContainer) {
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'loading-indicator';
+            loadingIndicator.innerHTML = `
+                <div class="spinner-border loading-spinner" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3 fw-medium">Loading ensemble data...</p>
+            `;
+            chartContainer.appendChild(loadingIndicator);
+        }
+        
+        clearChartMessagesInWrapper(); 
+
+        let apiUrl = `{% url 'weather:api_ensemble_forecast_trend_data' site_id=0 variable_name="VAR_PLACEHOLDER" %}`;
+        apiUrl = apiUrl.replace('/0/', `/${siteId}/`).replace('VAR_PLACEHOLDER', variable);
+        apiUrl += `?forecast_days=${forecastDays}&model_filter=${modelFilter}`;
+        
+        console.log("Fetching AGGREGATED ensemble data from: " + apiUrl);
+
+        try {
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                const errorText = await response.text();
+                displayChartMessageInWrapper(`Error ${response.status}: ${errorText.substring(0,250)}`, true);
+                if (ensembleTrendChartInstance) { 
+                    ensembleTrendChartInstance.data.labels = [];
+                    ensembleTrendChartInstance.data.datasets = [];
+                    ensembleTrendChartInstance.update();
+                }
+                return;
+            }
+            const fetchedData = await response.json();
+            console.log("Fetched AGGREGATED data from server for variable '" + variable + "', filter '" + modelFilter + "':", JSON.parse(JSON.stringify(fetchedData)));
+
+            if (fetchedData.error) {
+                displayChartMessageInWrapper(fetchedData.error, true);
+                if (ensembleTrendChartInstance) {
+                    ensembleTrendChartInstance.data.labels = [];
+                    ensembleTrendChartInstance.data.datasets = [];
+                    ensembleTrendChartInstance.update();
+                }
+                return;
+            }
+            
+            createOrUpdateEnsembleTrendChart(fetchedData);
+
+        } catch (error) {
+            console.error("Error in loadEnsembleTrendData:", error);
+            displayChartMessageInWrapper('Network error or script issue fetching data. Check console.', true);
+             if (ensembleTrendChartInstance) {
+                ensembleTrendChartInstance.data.labels = [];
+                ensembleTrendChartInstance.data.datasets = [];
+                ensembleTrendChartInstance.update();
+            }
+        } finally {
+            // Remove loading indicator
+            const chartContainer = document.getElementById(chartWrapperId);
+            if (chartContainer) {
+                const loadingIndicator = chartContainer.querySelector('.loading-indicator');
+                if (loadingIndicator) {
+                    loadingIndicator.remove();
+                }
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const siteSelect = document.getElementById('site-select');
+        const variableSelect = document.getElementById('variable-select');
+        const forecastDaysSelect = document.getElementById('forecast-days-select');
+        const modelFilterSelect = document.getElementById('model-filter-select');
+        const filterForm = document.getElementById('filterForm');
+
+        function handleFilterChange() { 
+            const selectedSiteId = siteSelect ? parseInt(siteSelect.value) : null;
+            const selectedVariable = variableSelect ? variableSelect.value : currentVariable;
+            const selectedForecastDays = forecastDaysSelect ? parseInt(forecastDaysSelect.value) : currentForecastDays;
+            const selectedModelFilter = modelFilterSelect ? modelFilterSelect.value : currentModelFilter;
+            
+            if (selectedSiteId && selectedVariable && selectedForecastDays && selectedModelFilter) {
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('site', selectedSiteId);
+                currentUrl.searchParams.set('variable', selectedVariable);
+                currentUrl.searchParams.set('forecast_days', selectedForecastDays);
+                currentUrl.searchParams.set('model_filter', selectedModelFilter);
+
+                // Update global JS vars for state
+                currentSiteId = selectedSiteId;
+                currentVariable = selectedVariable;
+                currentForecastDays = selectedForecastDays;
+                currentModelFilter = selectedModelFilter;
+
+                window.history.pushState({path: currentUrl.href}, '', currentUrl.href);
+                // Make API call with all current parameters
+                loadEnsembleTrendData(currentSiteId, currentVariable, currentForecastDays, currentModelFilter);
+
+            } else if (filterForm && siteSelect && siteSelect.value) { 
+                // If site is selected but other critical params are missing for JS load, submit form
+                filterForm.submit(); 
+            } else {
+                displayChartMessageInWrapper("Please select a site to view forecasts.", false);
+                if (ensembleTrendChartInstance) { 
+                    ensembleTrendChartInstance.destroy(); 
+                    ensembleTrendChartInstance = null; 
+                }
+            }
+        }
+
+        if (siteSelect) {
+            siteSelect.addEventListener('change', function() {
+                // When site changes, other dependent dropdowns (var, days, model) might re-populate or become active.
+                // A full form submission ensures the Django view re-evaluates context.
+                if (filterForm) filterForm.submit();
+            });
+        }
+        
+        // For other filters, we can now directly call handleFilterChange which triggers an API call
+        if (variableSelect) { variableSelect.addEventListener('change', handleFilterChange); }
+        if (forecastDaysSelect) { forecastDaysSelect.addEventListener('change', handleFilterChange); }
+        if (modelFilterSelect) { modelFilterSelect.addEventListener('change', handleFilterChange); }
+
+        // Initial data load if a site is selected
+        if (currentSiteId && currentVariable && currentModelFilter) {
+            loadEnsembleTrendData(currentSiteId, currentVariable, currentForecastDays, currentModelFilter);
+        } else {
+            if (document.getElementById('ensembleTrendChart')) { 
+                 displayChartMessageInWrapper("Please select a site, variable, forecast period, and model view.", false);
+            }
+        }
+    });
+</script>
+{% endblock scripts_extra %}

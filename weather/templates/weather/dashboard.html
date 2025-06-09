@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Dashboard - Adani Group</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+      
+    <style>
+        :root {
+            --adani-blue: #0B74B0;
+            --adani-purple: #75479C;
+            --adani-red: #BD3861;
+            --adani-light-blue: #E8F4F8;
+            --adani-light-purple: #F0EBF5;
+            --adani-light-red: #F8EBF0;
+            --text-primary: #2C3E50;
+            --text-secondary: #5A6C7D;
+            --border-color: #E1E8ED;
+            --bg-light: #F8FAFC;
+            --white: #FFFFFF;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Header & Navigation */
+        .navbar {
+            background: var(--white);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            padding: 1rem 0;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--adani-blue) !important;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar-brand i {
+            color: var(--adani-purple);
+        }
+
+        .nav-link {
+            color: var(--text-secondary) !important;
+            font-weight: 500;
+            padding: 0.75rem 1rem !important;
+            border-radius: 8px;
+            margin: 0 2px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--adani-blue) !important;
+            background-color: var(--adani-light-blue);
+        }
+
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--adani-blue) 0%, var(--adani-purple) 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 0;
+        }
+
+        /* Site Selector */
+        .site-selector-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title i {
+            color: var(--adani-blue);
+        }
+
+        /* Site Info Card */
+        .site-info-card {
+            background: linear-gradient(135deg, var(--adani-blue) 0%, var(--adani-purple) 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .site-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .site-info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .site-info-item i {
+            width: 20px;
+            text-align: center;
+            opacity: 0.9;
+        }
+
+        /* Weather Cards */
+        .weather-cards-section {
+            margin-bottom: 2rem;
+        }
+
+        .weather-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            height: 100%;
+        }
+
+        .weather-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .weather-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .weather-icon.temperature { background: linear-gradient(135deg, #FF6B6B, #FF8E53); }
+        .weather-icon.humidity { background: linear-gradient(135deg, #4ECDC4, #44A08D); }
+        .weather-icon.wind { background: linear-gradient(135deg, #A8E6CF, #7FCDCD); }
+        .weather-icon.pressure { background: linear-gradient(135deg, #FFD93D, #FF6B6B); }
+        .weather-icon.precipitation { background: linear-gradient(135deg, #6C5CE7, #A29BFE); }
+        .weather-icon.uv { background: linear-gradient(135deg, #FDCB6E, #E17055); }
+
+        .weather-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .weather-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Chart Cards */
+        .chart-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-title i {
+            color: var(--adani-blue);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .chart-container.large {
+            height: 400px;
+        }
+
+        /* Custom Select */
+        .form-select {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-weight: 500;
+            background-color: var(--white);
+            color: var(--text-primary);
+        }
+
+        .form-select:focus {
+            border-color: var(--adani-blue);
+            box-shadow: 0 0 0 0.25rem rgba(11, 116, 176, 0.1);
+        }
+
+        /* Buttons */
+        .btn-adani {
+            background: linear-gradient(135deg, var(--adani-blue) 0%, var(--adani-purple) 100%);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-adani:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+            color: white;
+        }
+
+        .btn-outline-adani {
+            border: 2px solid var(--adani-blue);
+            color: var(--adani-blue);
+            background: transparent;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-outline-adani:hover {
+            background: var(--adani-blue);
+            color: white;
+        }
+
+        /* Map Container */
+        .map-card {
+            background: var(--white);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .map-container {
+            height: 400px;
+            width: 100%;
+        }
+
+        /* Wind Rose */
+        .wind-rose-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .wind-rose-container {
+            height: 350px;
+            width: 100%;
+        }
+
+        /* Loading States */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            z-index: 10;
+        }
+
+        .spinner-border {
+            color: var(--adani-blue);
+        }
+
+        /* Alerts */
+        .alert-adani {
+            background: var(--adani-light-blue);
+            border: 1px solid var(--adani-blue);
+            color: var(--adani-blue);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        /* Time Display */
+        .time-display {
+            background: var(--adani-light-blue);
+            color: var(--adani-blue);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .page-title { font-size: 1.5rem; }
+            .weather-value { font-size: 1.5rem; }
+            .chart-container { height: 250px; }
+            .chart-container.large { height: 300px; }
+            .map-container { height: 300px; }
+            .wind-rose-container { height: 250px; }
+            .site-info-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Footer */
+        footer {
+            background: var(--white);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem 0;
+            margin-top: 3rem;
+            color: var(--text-secondary);
+        }
+
+        footer a {
+            color: var(--adani-blue);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Data Quality Indicators */
+        .data-quality {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .quality-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .quality-good { background-color: #27AE60; }
+        .quality-fair { background-color: #F39C12; }
+        .quality-poor { background-color: #E74C3C; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'weather:dashboard' %}">
+                <i class="fas fa-cloud-sun"></i>
+                Adani Weather Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'weather:dashboard' %}">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'temperature_trends' %}active{% endif %}" href="{% url 'weather:temperature_trends' %}">
+                            <i class="fas fa-chart-line me-1"></i>Historical Data
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'ensemble_forecast_trends' %}active{% endif %}" href="{% url 'weather:ensemble_forecast_trends' %}">
+                            <i class="fas fa-users-cog me-1"></i>Ensemble Forecasts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'satellite_imagery' %}active{% endif %}" href="{% url 'weather:satellite_imagery' %}">
+                            <i class="fas fa-satellite me-1"></i>Satellite Imagery
+                        </a>
+                    </li>
+                </ul>
+                <div class="time-display">
+                    <i class="fas fa-clock me-1"></i>
+                    <span id="current-time"></span> IST
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="page-title">Weather Monitoring Dashboard</h1>
+                    <p class="page-subtitle">Real-time weather data and forecasts for Adani Group facilities</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="data-quality">
+                        <span class="quality-dot quality-good"></span>
+                        Data Quality: Excellent
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <!-- Site Selector -->
+        <div class="site-selector-card">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <h5 class="section-title">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Select Facility
+                    </h5>
+                    <select class="form-select" id="siteSelect" onchange="selectSite(this.value)">
+                        <option value="">Choose a facility...</option>
+                        {% if sites %}
+                            {% for site_option in sites %}
+                            <option value="{{ site_option.id }}" {% if selected_site and selected_site.id == site_option.id %}selected{% endif %}>
+                                {{ site_option.name }} ({{ site_option.state }})
+                            </option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                {% if selected_site %}
+                <div class="col-md-9">
+                    <div class="site-info-card">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6 class="mb-3"><strong>{{ selected_site.name }}</strong></h6>
+                                <div class="site-info-grid">
+                                    <div class="site-info-item">
+                                        <i class="fas fa-industry"></i>
+                                        <span><strong>Type:</strong> {{ selected_site.site_type }}</span>
+                                    </div>
+                                    <div class="site-info-item">
+                                        <i class="fas fa-bolt"></i>
+                                        <span><strong>Capacity:</strong> {{ selected_site.capacity }}</span>
+                                    </div>
+                                    <div class="site-info-item">
+                                        <i class="fas fa-map-pin"></i>
+                                        <span><strong>Location:</strong> {{ selected_site.state }}</span>
+                                    </div>
+                                    <div class="site-info-item">
+                                        <i class="fas fa-globe"></i>
+                                        <span><strong>Coordinates:</strong> {{ selected_site.latitude }}°N, {{ selected_site.longitude }}°E</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-light" onclick="refreshWeatherData()">
+                                    <i class="fas fa-sync-alt me-1"></i>Refresh Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if selected_site %}
+        <!-- Current Weather Cards -->
+        <div class="weather-cards-section">
+            <h5 class="section-title mb-3">
+                <i class="fas fa-thermometer-half"></i>
+                Current Weather Conditions
+            </h5>
+            <div class="stats-grid" id="weather-cards-container">
+                <div class="weather-card">
+                    <div class="weather-icon temperature">
+                        <i class="fas fa-thermometer-half"></i>
+                    </div>
+                    <div class="weather-value" id="temperature">--</div>
+                    <div class="weather-label">Temperature (°C)</div>
+                </div>
+                <div class="weather-card">
+                    <div class="weather-icon humidity">
+                        <i class="fas fa-tint"></i>
+                    </div>
+                    <div class="weather-value" id="humidity">--</div>
+                    <div class="weather-label">Humidity (%)</div>
+                </div>
+                <div class="weather-card">
+                    <div class="weather-icon wind">
+                        <i class="fas fa-wind"></i>
+                    </div>
+                    <div class="weather-value" id="wind-speed">--</div>
+                    <div class="weather-label">Wind Speed (m/s)</div>
+                </div>
+                <div class="weather-card">
+                    <div class="weather-icon pressure">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <div class="weather-value" id="pressure">--</div>
+                    <div class="weather-label">Pressure (hPa)</div>
+                </div>
+                <div class="weather-card">
+                    <div class="weather-icon precipitation">
+                        <i class="fas fa-cloud-rain"></i>
+                    </div>
+                    <div class="weather-value" id="precipitation">--</div>
+                    <div class="weather-label">Precipitation (mm)</div>
+                </div>
+                <div class="weather-card">
+                    <div class="weather-icon uv">
+                        <i class="fas fa-sun"></i>
+                    </div>
+                    <div class="weather-value" id="uv-index">--</div>
+                    <div class="weather-label">UV Index</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row">
+            <!-- Main Charts Column -->
+            <div class="col-lg-8">
+                <!-- Temperature Forecast -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h6 class="chart-title">
+                            <i class="fas fa-chart-line"></i>
+                            7-Day Temperature Forecast (Hourly)
+                        </h6>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="temperatureChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Wind Speed Forecast -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h6 class="chart-title">
+                            <i class="fas fa-wind"></i>
+                            7-Day Wind Speed Forecast (Hourly)
+                        </h6>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="windSpeedChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Precipitation Forecast -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h6 class="chart-title">
+                            <i class="fas fa-cloud-rain"></i>
+                            7-Day Precipitation Forecast (Daily)
+                        </h6>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="precipitationChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Custom Parameter Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h6 class="chart-title">
+                            <i class="fas fa-chart-area"></i>
+                            Custom Parameter Forecast
+                        </h6>
+                        <select class="form-select w-auto" id="customChartSelect" onchange="updateCustomChart()">
+                            <option value="pressure">Atmospheric Pressure</option>
+                            <option value="humidity" selected>Relative Humidity</option>
+                            <option value="cloud_cover">Cloud Cover</option>
+                            <option value="uv_index">UV Index</option>
+                            <option value="feels_like">Feels Like Temperature</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="customChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Column -->
+            <div class="col-lg-4">
+                <!-- Wind Rose -->
+                <div class="wind-rose-card">
+                    <div class="chart-header">
+                        <h6 class="chart-title">
+                            <i class="fas fa-compass"></i>
+                            Wind Rose (Last 7 Days)
+                        </h6>
+                    </div>
+                    <div class="wind-rose-container" id="windRoseChart"></div>
+                </div>
+
+                <!-- Daily Summary -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h6 class="chart-title">
+                            <i class="fas fa-calendar-alt"></i>
+                            Daily Temperature Range
+                        </h6>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="dailySummaryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Map -->
+                <div class="map-card">
+                    <div class="chart-header" style="padding: 1.5rem 1.5rem 1rem;">
+                        <h6 class="chart-title">
+                            <i class="fas fa-map"></i>
+                            Adani Facilities Map
+                        </h6>
+                    </div>
+                    <div class="map-container" id="indiaMap"></div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- No Site Selected -->
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="alert alert-adani text-center">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <h4>Welcome to Adani Weather Dashboard</h4>
+                    <p class="mb-0">Please select a facility from the dropdown above to view comprehensive weather data and forecasts for that location.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center">
+        <div class="container">
+            <p class="mb-0">© {% now "Y" %} Adani Group | Weather data provided by <a href="https://open-meteo.com" target="_blank">Open-Meteo</a></p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <script>
+        const IST = 'Asia/Kolkata';
+
+        // Update time display
+        function updateTime() {
+            const el = document.getElementById('current-time');
+            if (el) {
+                el.textContent = new Date().toLocaleString('en-IN', {
+                    timeZone: IST,
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            }
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Utility functions
+        function escapeHtml(unsafe) {
+            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function formatNumber(value, decimals = 1) {
+            return (value === null || value === undefined || isNaN(parseFloat(value))) ? '--' : Number(value).toFixed(decimals);
+        }
+
+        function formatUTCToISTHourly(utcIsoString) {
+            if (!utcIsoString) return "N/A";
+            const dateObj = new Date(utcIsoString);
+            return dateObj.toLocaleString('en-IN', {
+                timeZone: IST,
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        }
+
+        function formatYYYYMMDDToISTDaily(dateString) {
+            if (!dateString) return "N/A";
+            const dateObj = new Date(dateString + "T00:00:00Z");
+            return dateObj.toLocaleDateString('en-IN', {
+                timeZone: IST,
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        // Loading states
+        function showLoading(containerId) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.style.position = 'relative';
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loading-overlay';
+                loadingDiv.innerHTML = `
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading data...</p>
+                `;
+                container.appendChild(loadingDiv);
+            }
+        }
+
+        function hideLoading(containerId) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                const loading = container.querySelector('.loading-overlay');
+                if (loading) loading.remove();
+            }
+        }
+
+        // Chart variables
+        let temperatureChart = null, windSpeedChart = null, precipitationChart = null, customChart = null, dailySummaryChart = null, adaniMap = null;
+        let currentSiteId = null;
+
+        {% if selected_site and selected_site.id is not None %}
+            currentSiteId = {{ selected_site.id }};
+        {% endif %}
+
+        // Chart configuration
+        const chartColors = {
+            primary: '#0B74B0',
+            secondary: '#75479C',
+            accent: '#BD3861',
+            success: '#27AE60',
+            warning: '#F39C12',
+            info: '#3498DB'
+        };
+
+        const globalChartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    titleColor: '#2C3E50',
+                    bodyColor: '#2C3E50',
+                    borderColor: '#E1E8ED',
+                    borderWidth: 1,
+                    cornerRadius: 8,
+                    displayColors: false,
+                    titleFont: { weight: 'bold' },
+                    bodyFont: { size: 13 }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: '#F1F3F4',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#5A6C7D',
+                        autoSkip: true,
+                        maxTicksLimit: 12,
+                        font: { size: 11 }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: '#F1F3F4',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: '#5A6C7D',
+                        font: { size: 11 }
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            },
+            elements: {
+                line: {
+                    tension: 0.3,
+                    borderWidth: 2
+                },
+                point: {
+                    radius: 3,
+                    hoverRadius: 6,
+                    borderWidth: 2,
+                    hoverBorderWidth: 3
+                }
+            }
+        };
+
+        // Initialize charts
+        function initializeAllCharts() {
+            const chartConfigs = [
+                {
+                    id: 'temperatureChart',
+                    variable: 'temperatureChart',
+                    type: 'line',
+                    color: chartColors.primary,
+                    fillColor: chartColors.primary + '20'
+                },
+                {
+                    id: 'windSpeedChart',
+                    variable: 'windSpeedChart',
+                    type: 'line',
+                    color: chartColors.info,
+                    fillColor: chartColors.info + '20'
+                },
+                {
+                    id: 'precipitationChart',
+                    variable: 'precipitationChart',
+                    type: 'bar',
+                    color: chartColors.accent,
+                    fillColor: chartColors.accent
+                },
+                {
+                    id: 'customChart',
+                    variable: 'customChart',
+                    type: 'line',
+                    color: chartColors.success,
+                    fillColor: chartColors.success + '20'
+                }
+            ];
+
+            chartConfigs.forEach(config => {
+                const canvas = document.getElementById(config.id);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    const options = JSON.parse(JSON.stringify(globalChartOptions));
+                    
+                    if (config.type === 'bar') {
+                        options.scales.x.ticks.maxTicksLimit = 7;
+                    }
+
+                    const chart = new Chart(ctx, {
+                        type: config.type,
+                        data: {
+                            labels: [],
+                            datasets: [{
+                                data: [],
+                                borderColor: config.color,
+                                backgroundColor: config.type === 'bar' ? config.color : config.fillColor,
+                                fill: config.type === 'line',
+                                pointBackgroundColor: config.color,
+                                pointBorderColor: '#FFFFFF',
+                                pointHoverBackgroundColor: '#FFFFFF',
+                                pointHoverBorderColor: config.color,
+                                borderRadius: config.type === 'bar' ? 4 : 0,
+                                maxBarThickness: 40
+                            }]
+                        },
+                        options: options
+                    });
+
+                    // Assign to global variables
+                    if (config.variable === 'temperatureChart') temperatureChart = chart;
+                    else if (config.variable === 'windSpeedChart') windSpeedChart = chart;
+                    else if (config.variable === 'precipitationChart') precipitationChart = chart;
+                    else if (config.variable === 'customChart') customChart = chart;
+                }
+            });
+
+            // Daily summary chart
+            const dailyCanvas = document.getElementById('dailySummaryChart');
+            if (dailyCanvas) {
+                const options = JSON.parse(JSON.stringify(globalChartOptions));
+                options.plugins.legend = {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12,
+                        usePointStyle: true,
+                        padding: 15,
+                        color: '#2C3E50',
+                        font: { size: 11 }
+                    }
+                };
+                options.scales.x.ticks.maxTicksLimit = 7;
+
+                dailySummaryChart = new Chart(dailyCanvas.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'Max Temp',
+                                data: [],
+                                backgroundColor: chartColors.accent,
+                                borderRadius: 4,
+                                maxBarThickness: 20
+                            },
+                            {
+                                label: 'Min Temp',
+                                data: [],
+                                backgroundColor: chartColors.info,
+                                borderRadius: 4,
+                                maxBarThickness: 20
+                            }
+                        ]
+                    },
+                    options: options
+                });
+            }
+        }
+
+        // Load weather data
+        function loadAllWeatherData() {
+            if (currentSiteId === null) return;
+
+            showLoading('weather-cards-container');
+            
+            $.ajax({
+                url: `{% url 'weather:api_weather_data' site_id=0 %}`.replace('/0/', `/${currentSiteId}/`),
+                method: 'GET',
+                success: function(data) {
+                    updateWeatherCards(data);
+                    hideLoading('weather-cards-container');
+                },
+                error: function(xhr) {
+                    updateWeatherCards({});
+                    hideLoading('weather-cards-container');
+                }
+            });
+
+            loadForecastChartData('temperature');
+            loadForecastChartData('wind_speed');
+            loadForecastChartData('precipitation');
+            updateCustomChart();
+            loadDailySummaryForecastData();
+            loadWindRoseChartData();
+        }
+
+        function updateWeatherCards(data) {
+            $('#temperature').text(formatNumber(data.temperature_2m, 1));
+            $('#humidity').text(formatNumber(data.relative_humidity_2m, 0));
+            $('#wind-speed').text(formatNumber(data.wind_speed_10m, 1));
+            $('#pressure').text(formatNumber(data.surface_pressure, 0));
+            $('#precipitation').text(formatNumber(data.precipitation, 1));
+            $('#uv-index').text(formatNumber(data.uv_index, 0));
+        }
+
+        function loadForecastChartData(chartType) {
+            if (currentSiteId === null) return;
+
+            let chartInstance, apiUrl, labelFormatter = formatUTCToISTHourly;
+
+            switch (chartType) {
+                case 'temperature':
+                    chartInstance = temperatureChart;
+                    apiUrl = `{% url 'weather:api_hourly_forecast_chart_data' site_id=0 chart_type='temperature' %}`.replace('/0/', `/${currentSiteId}/`);
+                    break;
+                case 'wind_speed':
+                    chartInstance = windSpeedChart;
+                    apiUrl = `{% url 'weather:api_hourly_forecast_chart_data' site_id=0 chart_type='wind_speed' %}`.replace('/0/', `/${currentSiteId}/`);
+                    break;
+                case 'precipitation':
+                    chartInstance = precipitationChart;
+                    apiUrl = `{% url 'weather:api_daily_precipitation_forecast_chart_data' site_id=0 %}`.replace('/0/', `/${currentSiteId}/`);
+                    labelFormatter = formatYYYYMMDDToISTDaily;
+                    break;
+                default:
+                    chartInstance = customChart;
+                    apiUrl = `{% url 'weather:api_hourly_forecast_chart_data' site_id=0 chart_type='__TYPE__' %}`.replace('/0/', `/${currentSiteId}/`).replace('__TYPE__', chartType);
+                    break;
+            }
+
+            if (!chartInstance) return;
+
+            $.ajax({
+                url: apiUrl,
+                method: 'GET',
+                success: function(apiData) {
+                    if (chartInstance && apiData.labels && apiData.datasets && apiData.datasets[0]) {
+                        chartInstance.data.labels = apiData.labels.map(labelFormatter);
+                        chartInstance.data.datasets[0].data = apiData.datasets[0].data;
+                        chartInstance.data.datasets[0].label = apiData.datasets[0].label;
+                        chartInstance.update('none');
+                    }
+                },
+                error: function(xhr) {
+                    if (chartInstance) {
+                        chartInstance.data.labels = [];
+                        chartInstance.data.datasets[0].data = [];
+                        chartInstance.update();
+                    }
+                }
+            });
+        }
+
+        function updateCustomChart() {
+            const param = $('#customChartSelect').val();
+            if (param) {
+                loadForecastChartData(param);
+            }
+        }
+
+        function loadDailySummaryForecastData() {
+            if (currentSiteId === null || !dailySummaryChart) return;
+
+            $.ajax({
+                url: `{% url 'weather:api_forecast_data' site_id=0 %}`.replace('/0/', `/${currentSiteId}/`),
+                method: 'GET',
+                success: function(resp) {
+                    if (resp && resp.daily && resp.daily.time && Array.isArray(resp.daily.temperature_2m_max) && Array.isArray(resp.daily.temperature_2m_min)) {
+                        const fd = resp.daily;
+                        dailySummaryChart.data.labels = fd.time.slice(0, 7).map(formatYYYYMMDDToISTDaily);
+                        dailySummaryChart.data.datasets[0].data = fd.temperature_2m_max.slice(0, 7);
+                        dailySummaryChart.data.datasets[1].data = fd.temperature_2m_min.slice(0, 7);
+                        dailySummaryChart.update('none');
+                    }
+                }
+            });
+        }
+
+        function loadWindRoseChartData() {
+            if (currentSiteId === null) return;
+
+            showLoading('windRoseChart');
+            
+            $.ajax({
+                url: `{% url 'weather:api_wind_rose' site_id=0 %}`.replace('/0/', `/${currentSiteId}/`),
+                method: 'GET',
+                success: function(data) {
+                    hideLoading('windRoseChart');
+                    if (data.wind_data && data.wind_data.length > 0) {
+                        createWindRose(data.wind_data);
+                    } else {
+                        $('#windRoseChart').html('<div class="d-flex align-items-center justify-content-center h-100"><p class="text-muted text-center">No wind data available</p></div>');
+                    }
+                },
+                error: function(xhr) {
+                    hideLoading('windRoseChart');
+                    $('#windRoseChart').html('<div class="d-flex align-items-center justify-content-center h-100"><p class="text-danger text-center">Failed to load wind data</p></div>');
+                }
+            });
+        }
+
+        function createWindRose(windData) {
+            if (typeof Plotly === 'undefined') return;
+
+            $('#windRoseChart').empty();
+            const dirs = windData.map(d => d.direction);
+            const speeds = windData.map(d => d.speed);
+
+            const trace = {
+                type: 'barpolar',
+                r: speeds,
+                theta: dirs,
+                marker: {
+                    color: speeds,
+                    colorscale: [
+                        [0, chartColors.info],
+                        [0.5, chartColors.primary],
+                        [1, chartColors.accent]
+                    ],
+                    colorbar: {
+                        title: 'Wind Speed (m/s)',
+                        titleside: 'right',
+                        thickness: 15,
+                        len: 0.7,
+                        outlinewidth: 0,
+                        titlefont: { color: '#2C3E50', size: 12 },
+                        tickfont: { color: '#2C3E50', size: 10 }
+                    }
+                },
+                hovertemplate: 'Direction: %{theta}°<br>Speed: %{r} m/s<extra></extra>'
+            };
+
+            const layout = {
+                font: { size: 12, color: '#2C3E50' },
+                polar: {
+                    radialaxis: {
+                        ticksuffix: ' m/s',
+                        angle: 45,
+                        tickangle: 45,
+                        gridcolor: '#E1E8ED',
+                        linecolor: '#E1E8ED',
+                        tickfont: { color: '#5A6C7D', size: 10 }
+                    },
+                    angularaxis: {
+                        direction: "clockwise",
+                        tickmode: 'array',
+                        tickvals: [0, 45, 90, 135, 180, 225, 270, 315],
+                        ticktext: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
+                        gridcolor: '#E1E8ED',
+                        linecolor: '#E1E8ED',
+                        tickfont: { color: '#5A6C7D', size: 11 }
+                    },
+                    bgcolor: 'rgba(0,0,0,0)'
+                },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: { t: 10, b: 10, l: 10, r: 10 }
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: false
+            };
+
+            Plotly.newPlot('windRoseChart', [trace], layout, config);
+        }
+
+        function initializeMap() {
+            const mapContainer = document.getElementById('indiaMap');
+            if (!mapContainer) return;
+
+            if (adaniMap) {
+                adaniMap.remove();
+                adaniMap = null;
+            }
+
+            try {
+                adaniMap = L.map('indiaMap').setView([22.0, 79.0], 4.5);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19
+                }).addTo(adaniMap);
+
+                $.ajax({
+                    url: "{% url 'weather:api_sites_geojson' %}",
+                    method: 'GET',
+                    success: function(geojson) {
+                        if (geojson && geojson.features && Array.isArray(geojson.features)) {
+                            const layer = L.geoJSON(geojson, {
+                                pointToLayer: function(feat, ll) {
+                                    const type = feat.properties.type;
+                                    let color = chartColors.primary;
+                                    if (type === 'Solar') color = chartColors.warning;
+                                    else if (type === 'Wind') color = chartColors.info;
+                                    else if (type === 'Hybrid') color = chartColors.accent;
+
+                                    return L.circleMarker(ll, {
+                                        radius: 8,
+                                        fillColor: color,
+                                        color: '#FFFFFF',
+                                        weight: 2,
+                                        opacity: 1,
+                                        fillOpacity: 0.8
+                                    });
+                                },
+                                onEachFeature: function(feat, lyr) {
+                                    if (feat.properties && feat.properties.popup_html) {
+                                        lyr.bindPopup(feat.properties.popup_html, {
+                                            maxWidth: 300,
+                                            className: 'custom-popup'
+                                        });
+                                    }
+                                }
+                            }).addTo(adaniMap);
+
+                            if (currentSiteId !== null) {
+                                const selectedFeature = geojson.features.find(f => f.properties.id == currentSiteId);
+                                if (selectedFeature && selectedFeature.geometry && selectedFeature.geometry.coordinates) {
+                                    const coords = [selectedFeature.geometry.coordinates[1], selectedFeature.geometry.coordinates[0]];
+                                    adaniMap.setView(coords, 8);
+
+                                    // Add marker for selected site
+                                    L.circleMarker(coords, {
+                                        radius: 12,
+                                        fillColor: chartColors.accent,
+                                        color: '#FFFFFF',
+                                        weight: 3,
+                                        opacity: 1,
+                                        fillOpacity: 1
+                                    }).addTo(adaniMap);
+                                }
+                            } else {
+                                if (layer && geojson.features.length > 0) {
+                                    adaniMap.fitBounds(layer.getBounds().pad(0.1));
+                                }
+                            }
+                        }
+                    },
+                    error: function(xhr) {
+                        $('#indiaMap').html('<div class="d-flex align-items-center justify-content-center h-100"><p class="text-danger text-center">Failed to load map data</p></div>');
+                    }
+                });
+            } catch (e) {
+                mapContainer.innerHTML = '<div class="d-flex align-items-center justify-content-center h-100"><p class="text-danger text-center">Error initializing map</p></div>';
+            }
+        }
+
+        function selectSite(siteId) {
+            if (siteId) {
+                window.location.href = `{% url 'weather:dashboard' %}?site=${encodeURIComponent(siteId)}`;
+            }
+        }
+
+        function refreshWeatherData() {
+            if (currentSiteId === null) {
+                alert('Please select a facility first.');
+                return;
+            }
+
+            const btn = $('button:contains("Refresh Data")');
+            const originalText = btn.html();
+            btn.html('<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...').prop('disabled', true);
+
+            $.ajax({
+                url: "{% url 'weather:api_update_weather' %}",
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                success: function(data) {
+                    if (data.success) {
+                        loadAllWeatherData();
+                        showNotification('success', data.message || 'Weather data refreshed successfully!');
+                    } else {
+                        throw new Error(data.error || "Refresh error reported by server.");
+                    }
+                },
+                error: function(xhr) {
+                    const msg = xhr.responseJSON ? xhr.responseJSON.error : "Server error during refresh.";
+                    showNotification('error', msg);
+                },
+                complete: function() {
+                    btn.html(originalText).prop('disabled', false);
+                }
+            });
+        }
+
+        function showNotification(type, message) {
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+            
+            const alert = $(`
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert" 
+                     style="position:fixed;top:100px;right:30px;z-index:1050;min-width:300px;">
+                    <i class="fas ${icon} me-2"></i>${escapeHtml(message)}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `);
+            
+            $('body').append(alert);
+            setTimeout(() => alert.fadeOut(500, () => alert.remove()), 4000);
+        }
+
+        // Initialize everything
+        $(document).ready(function() {
+            if (currentSiteId !== null) {
+                initializeAllCharts();
+                loadAllWeatherData();
+                setInterval(loadAllWeatherData, 15 * 60 * 1000); // Refresh every 15 minutes
+            }
+            initializeMap();
+        });
+    </script>
+</body>
+</html>

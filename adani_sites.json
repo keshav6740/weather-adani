@@ -1,0 +1,58 @@
+{
+  "Kamuthi Solar Power Project": {
+    "latitude": 9.3476,
+    "longitude": 78.3922,
+    "capacity": "648 MW",
+    "type": "Solar",
+    "state": "Tamil Nadu"
+  },
+  "Bitta Solar Power Plant": {
+    "latitude": 23.047,
+    "longitude": 68.835,
+    "capacity": "40 MW",
+    "type": "Solar",
+    "state": "Gujarat"
+  },
+  "Bathinda Solar Power Plant": {
+    "latitude": 30.211,
+    "longitude": 74.9455,
+    "capacity": "100 MW",
+    "type": "Solar",
+    "state": "Punjab"
+  },
+  "Chitrakoot Solar Power Plant": {
+    "latitude": 25.2,
+    "longitude": 80.9,
+    "capacity": "50 MW",
+    "type": "Solar",
+    "state": "Uttar Pradesh"
+  },
+  "Kutch Wind Farm": {
+    "latitude": 23.0949,
+    "longitude": 69.6126,
+    "capacity": "150 MW",
+    "type": "Wind",
+    "state": "Gujarat"
+  },
+  "Sadla Wind Farm": {
+    "latitude": 23.1374,
+    "longitude": 71.8571,
+    "capacity": "18 MW",
+    "type": "Wind",
+    "state": "Gujarat"
+  },
+  "Khavda Renewable Energy Park": {
+    "latitude": 23.733,
+    "longitude": 68.5,
+    "capacity": "30,000 MW (Planned)",
+    "type": "Hybrid",
+    "state": "Gujarat"
+  },
+  "Jaisalmer Hybrid Power Plant": {
+    "latitude": 26.9157,
+    "longitude": 70.9083,
+    "capacity": "2,140 MW",
+    "type": "Hybrid",
+    "state": "Rajasthan"
+  }
+}

@@ -1,0 +1,334 @@
+{% extends "weather/base.html" %} {# Or your main base template e.g., "base.html" #}
+{% load static %}
+
+{% block title %}
+    {{ page_title|default:"Historical Temperature Trends" }} - Adani Weather Dashboard
+{% endblock title %}
+
+{% block head_extra %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            margin: 20px auto;
+            padding: 20px;
+            height: 65vh;
+            width: 90%;
+            max-width: 1000px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .controls-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 15px;
+        }
+        .controls-container .form-inline,
+        .controls-container .form-group {
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .controls-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .controls-container .form-inline,
+            .controls-container .form-group {
+                width: 100%;
+                margin-bottom: 15px;
+            }
+            .controls-container .form-inline .form-control,
+            .controls-container .form-group .form-control {
+                width: 100%;
+            }
+            .controls-container .float-md-right {
+                float: none !important;
+                width: 100%;
+            }
+        }
+    </style>
+{% endblock head_extra %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="controls-container">
+        <div>
+            <h2>
+                {{ page_title|default:"Historical Temperature Trends" }}
+                {% if selected_site %}
+                    <span class="text-muted">| {{ selected_site.name }}</span>
+                {% endif %}
+            </h2>
+        </div>
+        <div class="form-inline">
+            <form method="GET" action="{% url 'weather:temperature_trends' %}" id="siteForm" class="form-inline mr-md-3">
+                <div class="form-group">
+                    <label for="site-select" class="mr-2">Site:</label>
+                    <select name="site" id="site-select" class="form-control" onchange="document.getElementById('siteForm').submit();">
+                        {% if not sites %}
+                            <option value="">No sites available</option>
+                        {% else %}
+                            <option value="" {% if not selected_site %}selected{% endif %} disabled>Select a site...</option>
+                            {% for site_option in sites %}
+                                <option value="{{ site_option.id }}" {% if selected_site and selected_site.id == site_option.id %}selected{% endif %}>
+                                    {{ site_option.name }}
+                                </option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                    <input type="hidden" name="days" id="hiddenDaysInput" value="{{ current_days_range|default:'7' }}">
+                </div>
+                <noscript><button type="submit" class="btn btn-primary ml-2">View</button></noscript>
+            </form>
+
+            {% if selected_site %}
+            <div class="form-group">
+                <label for="days-range" class="mr-2">Period:</label>
+                <select id="days-range" class="form-control">
+                    <option value="1" {% if current_days_range == 1 %}selected{% endif %}>Last 1 Day</option>
+                    <option value="3" {% if current_days_range == 3 %}selected{% endif %}>Last 3 Days</option>
+                    <option value="7" {% if current_days_range == 7 %}selected{% endif %}>Last 7 Days</option>
+                    <option value="14" {% if current_days_range == 14 %}selected{% endif %}>Last 14 Days</option>
+                    <option value="30" {% if current_days_range == 30 %}selected{% endif %}>Last 30 Days</option>
+                </select>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if selected_site %}
+        <div class="row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <canvas id="temperatureTrendChart"></canvas>
+                </div>
+                <div id="chart-error-message" class="text-center text-danger mt-2" style="display: none;"></div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center" role="alert">
+            <i class="fas fa-info-circle"></i> Please select a site to view its temperature trend.
+            {% if not sites %}
+                <br>No active sites are currently configured. Please contact an administrator.
+            {% endif %}
+        </div>
+    {% endif %}
+
+</div>
+{% endblock content %}
+
+{% block scripts_extra %}
+{{ block.super }}
+<script>
+    let temperatureTrendChartInstance = null;
+    let currentSiteId = null;
+    let currentDaysRange = {{ current_days_range|default:7 }};
+
+    {% if selected_site and selected_site.id is not None %}
+        currentSiteId = {{ selected_site.id }};
+        console.log("Initial currentSiteId (from Django):", currentSiteId);
+        console.log("Initial currentDaysRange (from Django):", currentDaysRange);
+    {% else %}
+        console.log("No site initially selected by Django.");
+    {% endif %}
+
+    const adaniColors = {
+        primary_blue: '{{ adani_colors.primary_blue|default:"#0B74B0" }}',
+    };
+
+    function displayChartError(message) {
+        const errorMessageDiv = document.getElementById('chart-error-message');
+        if (errorMessageDiv) {
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.style.display = 'block';
+            console.error("Chart Error Displayed:", message);
+        }
+        const canvas = document.getElementById('temperatureTrendChart');
+        if (canvas && temperatureTrendChartInstance) {
+            temperatureTrendChartInstance.destroy();
+            temperatureTrendChartInstance = null;
+            console.log("Destroyed chart instance due to error.");
+        } else if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    function clearChartError() {
+        const errorMessageDiv = document.getElementById('chart-error-message');
+        if (errorMessageDiv) {
+            errorMessageDiv.style.display = 'none';
+            errorMessageDiv.textContent = '';
+        }
+    }
+
+    function createOrUpdateTemperatureTrendChart(chartDataFromServer) {
+        clearChartError();
+        const canvas = document.getElementById('temperatureTrendChart');
+        if (!canvas) {
+            console.error("CRITICAL: Canvas element 'temperatureTrendChart' not found!");
+            displayChartError("Chart canvas element is missing from the page.");
+            return;
+        }
+        const ctx = canvas.getContext('2d');
+
+        console.log("Attempting to create/update chart with data:", JSON.parse(JSON.stringify(chartDataFromServer)));
+
+        if (!chartDataFromServer || !chartDataFromServer.labels || !chartDataFromServer.datasets || chartDataFromServer.datasets.length === 0) {
+            console.error("Chart data is malformed or missing essential parts (labels/datasets). Data:", chartDataFromServer);
+            displayChartError("Received invalid data structure for the chart.");
+            return;
+        }
+        if(chartDataFromServer.labels.length === 0 || chartDataFromServer.datasets[0].data.length === 0){
+            console.warn("Chart data has empty labels or data points. Chart will be blank or show 'no data'.");
+        }
+
+        if (temperatureTrendChartInstance) {
+            console.log("Updating existing chart instance.");
+            temperatureTrendChartInstance.data = chartDataFromServer;
+            temperatureTrendChartInstance.update();
+        } else {
+            console.log("Creating new chart instance.");
+            try {
+                temperatureTrendChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: chartDataFromServer,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'category',
+                                title: { display: true, text: 'Timestamp', font: { size: 14 } },
+                                ticks: { autoSkip: true, maxTicksLimit: 15 }
+                            },
+                            y: {
+                                title: { display: true, text: 'Temperature (°C)', font: { size: 14 } },
+                                beginAtZero: false
+                            }
+                        },
+                        plugins: {
+                            legend: { position: 'top', labels: { font: { size: 14 } } },
+                            tooltip: { mode: 'index', intersect: false, callbacks: { title: function(tooltipItems) { return tooltipItems[0].label; } } }
+                        },
+                        interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                    }
+                });
+                console.log("Chart instance created successfully:", temperatureTrendChartInstance);
+            } catch (e) {
+                console.error("CRITICAL: Error during Chart.js instantiation:", e);
+                displayChartError("An error occurred while trying to render the chart. " + e.message);
+            }
+        }
+    }
+
+    async function loadTemperatureTrendData(siteId, days) {
+        if (!siteId) {
+            console.log("No site ID provided to loadTemperatureTrendData. Chart will not load.");
+             if (temperatureTrendChartInstance) {
+                temperatureTrendChartInstance.destroy();
+                temperatureTrendChartInstance = null;
+            }
+            return;
+        }
+
+        const apiUrl = `{% url 'weather:api_temperature_trend_data' site_id=0 %}`.replace('/0/', `/${siteId}/`) + `?days=${days}`;
+        
+        console.log(`Fetching temperature trend data from: ${apiUrl}`);
+
+        try {
+            const response = await fetch(apiUrl);
+            console.log("API Response Status:", response.status, response.statusText);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Failed to fetch temperature trend data (HTTP Error):', response.status, errorText);
+                displayChartError(`Error ${response.status}: Could not load chart data. Server response: ${errorText.substring(0, 200)}...`);
+                return;
+            }
+
+            const responseText = await response.text();
+            let chartDataFromServer;
+            try {
+                chartDataFromServer = JSON.parse(responseText);
+            } catch (e) {
+                console.error("Failed to parse API response as JSON:", e, "Raw text:", responseText);
+                displayChartError("Received an invalid (non-JSON) response from the server.");
+                return;
+            }
+            
+            console.log("Parsed API Response JSON:", JSON.parse(JSON.stringify(chartDataFromServer))); 
+
+            if (chartDataFromServer && chartDataFromServer.labels && chartDataFromServer.labels.length > 0 &&
+                chartDataFromServer.datasets && chartDataFromServer.datasets.length > 0 && chartDataFromServer.datasets[0].data.length > 0) {
+                createOrUpdateTemperatureTrendChart(chartDataFromServer);
+            } else {
+                console.warn("API returned data, but labels or data points are empty.", chartDataFromServer);
+                displayChartError("No temperature data available for the selected period.");
+                if (temperatureTrendChartInstance) {
+                    temperatureTrendChartInstance.destroy();
+                    temperatureTrendChartInstance = null;
+                    console.log("Destroyed previous chart instance due to no new data.");
+                }
+            }
+        } catch (error) {
+            console.error('Error in loadTemperatureTrendData (Network or JS issue):', error);
+            displayChartError('A network error or script issue occurred while fetching chart data. Check console for details.');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM fully loaded and parsed.");
+        const siteSelect = document.getElementById('site-select');
+        const daysSelect = document.getElementById('days-range');
+        const hiddenDaysInput = document.getElementById('hiddenDaysInput');
+
+        if (currentSiteId) {
+            console.log("Attempting to load initial chart data for site:", currentSiteId, "days:", currentDaysRange);
+            if (daysSelect) {
+                 daysSelect.value = String(currentDaysRange);
+            }
+            loadTemperatureTrendData(currentSiteId, currentDaysRange);
+        } else {
+            console.log("No currentSiteId set on page load. Waiting for site selection.");
+        }
+
+        if (daysSelect) {
+            daysSelect.addEventListener('change', function() {
+                currentDaysRange = parseInt(this.value, 10);
+                console.log("Days range changed to:", currentDaysRange);
+                if (hiddenDaysInput) {
+                    hiddenDaysInput.value = currentDaysRange;
+                }
+
+                if (currentSiteId) {
+                    const currentUrl = new URL(window.location.href);
+                    currentUrl.searchParams.set('site', currentSiteId); 
+                    currentUrl.searchParams.set('days', currentDaysRange);
+                    window.history.pushState({ path: currentUrl.href }, '', currentUrl.href);
+                    console.log("URL updated to:", currentUrl.href);
+                    loadTemperatureTrendData(currentSiteId, currentDaysRange);
+                } else {
+                    console.log("Days range changed, but no site selected to load data for.");
+                }
+            });
+        }
+
+        if (siteSelect) {
+            siteSelect.addEventListener('change', function() {
+                console.log("Site selection changed via dropdown.");
+                if (daysSelect && hiddenDaysInput) {
+                    hiddenDaysInput.value = daysSelect.value; 
+                    console.log("Persisting days value for form submission:", hiddenDaysInput.value);
+                }
+            });
+        }
+    });
+</script>
+{% endblock scripts_extra %}

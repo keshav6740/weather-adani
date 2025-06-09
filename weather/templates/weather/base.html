@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Adani Weather Dashboard{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    
+    <!-- Weather Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.12/css/weather-icons.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Plotly.js for Wind Rose -->
+    <script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+      
+    <!-- Custom Adani Theme CSS -->
+    <style>
+        :root {
+            --adani-blue: #0B74B0;
+            --adani-purple: #75479C;
+            --adani-red: #BD3861;
+            --adani-blue-secondary: #0680A8;
+            --adani-purple-secondary: #5D58A6;
+            --adani-red-secondary: #BB3866;
+            --adani-gradient: linear-gradient(135deg, var(--adani-blue) 0%, var(--adani-purple) 50%, var(--adani-red) 100%);
+            --adani-light-bg: #f8f9fa;
+            --adani-card-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            --adani-hover-shadow: 0 12px 30px rgba(0,0,0,0.15);
+            --card-border-radius: 16px;
+            --transition-speed: 0.3s;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #333;
+        }
+        
+        .main-content-area {
+            flex: 1;
+            padding-bottom: 2rem;
+        }
+
+        /* Enhanced Navbar */
+        .navbar {
+            background: var(--adani-gradient) !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            padding: 0.8rem 1rem;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.6rem;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .navbar-brand img {
+            height: 36px;
+            width: auto;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 500;
+            padding: 0.7rem 1rem !important;
+            border-radius: 8px;
+            margin: 0 3px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-link:hover {
+            color: white !important;
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .nav-link.active {
+            color: white !important;
+            background-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-toggler {
+            border-color: rgba(255,255,255,0.5);
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+
+        /* Enhanced Cards */
+        .adani-card {
+            background: white;
+            border-radius: var(--card-border-radius);
+            box-shadow: var(--adani-card-shadow);
+            border: none;
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+            overflow: hidden;
+        }
+
+        .adani-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--adani-hover-shadow);
+        }
+
+        /* Weather Cards with Glassmorphism */
+        .weather-card {
+            background: var(--adani-gradient);
+            color: white;
+            border-radius: var(--card-border-radius);
+            padding: 25px 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            box-shadow: var(--adani-card-shadow);
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+        }
+
+        .weather-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--adani-hover-shadow);
+        }
+
+        .weather-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .weather-card-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .weather-value {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin: 10px 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .weather-label {
+            font-size: 0.95rem;
+            opacity: 0.95;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 500;
+        }
+
+        /* Enhanced Chart Containers */
+        .chart-container {
+            background: white;
+            border-radius: var(--card-border-radius);
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: var(--adani-card-shadow);
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+        }
+        
+        .chart-container:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--adani-hover-shadow);
+        }
+
+        .site-selector {
+            background: white;
+            border-radius: var(--card-border-radius);
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: var(--adani-card-shadow);
+        }
+
+        /* Enhanced Buttons */
+        .btn-adani {
+            background: var(--adani-gradient);
+            border: none;
+            color: white;
+            border-radius: 30px;
+            padding: 12px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .btn-adani:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+            color: white;
+        }
+        
+        .btn-adani:active {
+            transform: translateY(1px);
+        }
+
+        .dropdown-menu {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 8px 15px;
+            transition: all 0.2s ease;
+        }
+
+        .dropdown-item:hover {
+            background: linear-gradient(45deg, var(--adani-blue), var(--adani-purple));
+            color: white;
+            transform: translateX(5px);
+        }
+
+        /* Map Container */
+        .map-container {
+            height: 300px;
+            border-radius: var(--card-border-radius);
+            overflow: hidden;
+            box-shadow: var(--adani-card-shadow);
+        }
+
+        .wind-rose-container {
+            height: 400px;
+            background: white;
+            border-radius: var(--card-border-radius);
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: var(--adani-card-shadow);
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+        }
+        
+        .wind-rose-container:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--adani-hover-shadow);
+        }
+
+        /* Section Titles */
+        .section-title {
+            color: var(--adani-blue);
+            font-weight: 700;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            position: relative;
+            padding-left: 15px;
+        }
+        
+        .section-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 70%;
+            width: 5px;
+            background: var(--adani-gradient);
+            border-radius: 5px;
+        }
+
+        .site-info {
+            background: linear-gradient(45deg, var(--adani-blue), var(--adani-purple));
+            color: white;
+            border-radius: var(--card-border-radius);
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: var(--adani-card-shadow);
+        }
+        
+        .site-info h5 {
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .site-info p {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .spinner-border {
+            color: var(--adani-blue);
+            width: 3rem;
+            height: 3rem;
+        }
+
+        /* Alerts */
+        .alert-adani {
+            background: linear-gradient(45deg, var(--adani-blue), var(--adani-purple));
+            color: white;
+            border: none;
+            border-radius: var(--card-border-radius);
+            padding: 20px;
+            box-shadow: var(--adani-card-shadow);
+        }
+
+        /* Chart Title */
+        .chart-title {
+            color: var(--adani-blue);
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { 
+            background: var(--adani-gradient); 
+            border-radius: 10px; 
+            border: 2px solid #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--adani-blue); }
+        
+        /* Footer */
+        footer {
+            background-color: #fff;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            padding: 1.5rem 0;
+            margin-top: auto;
+        }
+        
+        footer a {
+            color: var(--adani-blue);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+        
+        footer a:hover {
+            color: var(--adani-purple);
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .weather-value { font-size: 2.2rem; }
+            .chart-container { padding: 15px; margin-bottom: 20px; }
+            .map-container { height: 250px; }
+            .section-title { font-size: 1.2rem; }
+            .navbar-brand { font-size: 1.4rem; }
+            .navbar-brand img { height: 30px; }
+        }
+    </style>
+    
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'weather:dashboard' %}">
+                <img src="/static/weather/images/adani_logo.jpeg" alt="Adani Logo">
+                Adani Weather
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'weather:dashboard' %}">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'temperature_trends' %}active{% endif %}" href="{% url 'weather:temperature_trends' %}">
+                            <i class="fas fa-chart-line me-1"></i>Historical Temp
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'ensemble_forecast_trends' %}active{% endif %}" href="{% url 'weather:ensemble_forecast_trends' %}">
+                            <i class="fas fa-chart-area me-1"></i>Ensemble Forecasts
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link {% if request.resolver_match.url_name == 'satellite_imagery' %}active{% endif %}" href="{% url 'weather:satellite_imagery' %}">
+                            <i class="fas fa-satellite me-1"></i>Satellite Imagery
+                        </a>
+                    </li>
+                     <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarTimeDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                           <i class="fas fa-clock me-1"></i><span id="current-time"></span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarTimeDropdown">
+                            <li><span class="dropdown-item-text"><small>Time in IST (Asia/Kolkata)</small></span></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid py-4 main-content-area">
+        {% if messages %}
+            <div class="row justify-content-center">
+                <div class="col-md-10">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center py-3 mt-auto">
+        <div class="container">
+            <p class="mb-0 text-muted">
+                © {% now "Y" %} Adani Group | Powered by <a href="https://open-meteo.com" target="_blank">Open-Meteo API</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- jQuery for easier AJAX -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <script>
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('en-IN', {
+                timeZone: 'Asia/Kolkata', hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+            const timeEl = document.getElementById('current-time');
+            if (timeEl) timeEl.textContent = timeString;
+        }
+        setInterval(updateTime, 1000); updateTime();
+
+        window.weatherDashboard = {
+            showLoading: function(containerId) {
+                const container = document.getElementById(containerId);
+                if (container) {
+                    let spinner = container.querySelector('.loading-spinner');
+                    if (!spinner) {
+                        container.style.position = 'relative';
+                        container.insertAdjacentHTML('beforeend', 
+                            '<div class="loading-spinner" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.8);z-index:10;border-radius:var(--card-border-radius);">' +
+                            '<div class="spinner-border"><span class="visually-hidden">Loading...</span></div>' +
+                            '<p class="mt-3 fw-medium">Loading data...</p></div>');
+                        spinner = container.querySelector('.loading-spinner');
+                    }
+                    if (spinner) spinner.style.display = 'flex';
+                }
+            },
+            hideLoading: function(containerId) {
+                const container = document.getElementById(containerId);
+                if (container) {
+                    const spinner = container.querySelector('.loading-spinner');
+                    if (spinner) spinner.style.display = 'none';
+                }
+            },
+            showError: function(containerId, message) {
+                const container = document.getElementById(containerId);
+                if (container) {
+                    container.innerHTML = `<div class="alert alert-danger m-3 rounded-3"><i class="fas fa-exclamation-triangle me-2"></i>${this.escapeHtml(message)}</div>`;
+                }
+            },
+            formatNumber: function(value, decimals = 1) {
+                return (value === null || value === undefined || isNaN(parseFloat(value))) ? 'N/A' : Number(value).toFixed(decimals);
+            },
+            escapeHtml: function(unsafe) {
+                return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            }
+        };
+    </script>
+
+    {% block scripts_extra %}{% endblock %}
+</body>
+</html>

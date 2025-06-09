@@ -1,0 +1,435 @@
+{% extends "weather/base.html" %}
+{% load static %}
+
+{% block title %}
+    Satellite Imagery - Adani Weather Dashboard
+{% endblock title %}
+
+{% block head_extra %}
+    {{ block.super }}
+    <style>
+        /* Enhanced Satellite Navigation */
+        .satellite-nav-container { 
+            background: linear-gradient(135deg, var(--adani-blue) 0%, var(--adani-purple) 100%);
+            padding: 20px; 
+            border-radius: var(--card-border-radius); 
+            height: 100%; 
+            box-shadow: var(--adani-card-shadow);
+        }
+        
+        .satellite-nav-header { 
+            color: #ffffff; 
+            font-weight: 700; 
+            font-size: 1.2rem; 
+            padding: 10px 15px; 
+            margin-bottom: 15px; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .satellite-nav .nav-link { 
+            background-color: rgba(255, 255, 255, 0.1); 
+            color: #ffffff; 
+            margin-bottom: 8px; 
+            border-radius: 10px; 
+            text-align: left; 
+            font-weight: 500; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .satellite-nav .nav-link:hover { 
+            background-color: rgba(255, 255, 255, 0.2); 
+            transform: translateX(5px);
+        }
+        
+        .satellite-nav .nav-link.active { 
+            background-color: rgba(255, 255, 255, 0.25); 
+            color: #ffffff; 
+            font-weight: 600; 
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        .satellite-nav .nav-link.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 70%;
+            width: 4px;
+            background: #fff;
+            border-radius: 2px;
+        }
+
+        /* Enhanced Content Panel */
+        .content-panel { 
+            padding: 25px; 
+            background-color: #ffffff; 
+            border-radius: var(--card-border-radius); 
+            box-shadow: var(--adani-card-shadow);
+            height: 100%;
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+        }
+        
+        .content-panel:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--adani-hover-shadow);
+        }
+        
+        .description-box { 
+            margin-top: 25px; 
+            padding: 20px; 
+            border: 1px solid #e0e0e0; 
+            border-radius: var(--card-border-radius); 
+            background-color: #f8f9fa; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .description-box h5 { 
+            color: var(--adani-blue); 
+            font-weight: 700; 
+            margin-bottom: 15px; 
+            position: relative;
+            padding-left: 15px;
+        }
+        
+        .description-box h5::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 70%;
+            width: 4px;
+            background: var(--adani-gradient);
+            border-radius: 2px;
+        }
+
+        /* Enhanced View Wrapper */
+        .view-wrapper {
+            width: 100%;
+            margin: 0 auto;
+            aspect-ratio: 650 / 450;
+            position: relative;
+            border-radius: var(--card-border-radius);
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Enhanced GIF Container */
+        .satellite-gif-view {
+            width: 100%;
+            height: 100%;
+            border-radius: var(--card-border-radius);
+            overflow: hidden;
+        }
+        
+        .satellite-gif-view img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            border-radius: var(--card-border-radius);
+            border: 1px solid #ddd;
+        }
+
+        /* Enhanced Iframe Container */
+        .windy-iframe-view {
+            width: 100%;
+            height: 100%;
+            display: none;
+            border-radius: var(--card-border-radius);
+            overflow: hidden;
+        }
+        
+        .windy-iframe-view iframe {
+            width: 100%;
+            height: 100%;
+            border-radius: var(--card-border-radius);
+            border: 1px solid #ddd;
+        }
+
+        /* Enhanced Toggle Switch */
+        .view-toggle-switch {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-check-input {
+            width: 3em;
+            height: 1.5em;
+            cursor: pointer;
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--adani-blue);
+            border-color: var(--adani-blue);
+        }
+        
+        .form-check-label {
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        /* Content Title */
+        .content-title {
+            color: var(--adani-blue);
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-align: center;
+            position: relative;
+            display: inline-block;
+            padding-bottom: 8px;
+        }
+        
+        .content-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background: var(--adani-gradient);
+            border-radius: 3px;
+        }
+        
+        /* Channel Badge */
+        .channel-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: var(--adani-gradient);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Loading Indicator */
+        .loading-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            border-radius: var(--card-border-radius);
+        }
+        
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.25rem;
+        }
+    </style>
+{% endblock head_extra %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Left Navigation Column -->
+        <div class="col-lg-3 col-md-4 mb-4">
+            <div class="satellite-nav-container">
+                <div class="satellite-nav-header">
+                    <i class="fas fa-sun"></i> Visible Channels
+                </div>
+                <div class="nav flex-column satellite-nav">
+                    {% for channel in visible_channels %}
+                    <a class="nav-link satellite-nav-button {% if forloop.first %}active{% endif %}" data-content-id="visible-content">
+                        <i class="fas fa-satellite-dish"></i> {{ channel.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+                <div class="satellite-nav-header mt-4">
+                    <i class="fas fa-moon"></i> Infrared Channels
+                </div>
+                <div class="nav flex-column satellite-nav">
+                     {% for channel in infrared_channels %}
+                     <a class="nav-link satellite-nav-button" data-content-id="infrared-content">
+                         <i class="fas fa-satellite"></i> {{ channel.name }}
+                     </a>
+                     {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Content Column -->
+        <div class="col-lg-9 col-md-8">
+            <!-- Visible Content Panel -->
+            <div id="visible-content" class="content-panel">
+                <div class="text-center mb-4">
+                    <h4 class="content-title">Visible Satellite Imagery</h4>
+                    <!-- <span class="channel-badge">Channel 0.65 µm</span> -->
+                </div>
+                
+                <div class="view-wrapper">
+                    <!-- GIF View -->
+                    <div class="satellite-gif-view" id="visible-gif-view">
+                        <img src="{% static 'weather/images/VIS.gif' %}" alt="Visible Satellite Loop">
+                    </div>
+                    <!-- Windy Iframe View (Hidden) -->
+                    <div class="windy-iframe-view" id="visible-windy-view">
+                        <iframe src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricWind=default&zoom=4&overlay=wind&product=ecmwf&level=surface&lat=20.647&lon=78.851" frameborder="0"></iframe>
+                    </div>
+                </div>
+                
+                <div class="form-check form-switch view-toggle-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="toggle-view-visible">
+                    <label class="form-check-label" for="toggle-view-visible">Show Live Wind Map</label>
+                </div>
+                
+                <div class="description-box">
+                    <h5>Visible Channel</h5>
+                    <p class="mb-0">This animated loop shows the movement and development of cloud patterns during daylight hours, as captured by reflected sunlight. Visible imagery is most effective during daylight and helps meteorologists track cloud development, movement, and intensity.</p>
+                </div>
+            </div>
+
+            <!-- Infrared Content Panel -->
+            <div id="infrared-content" class="content-panel" style="display: none;">
+                <div class="text-center mb-4">
+                    <h4 class="content-title">Infrared Satellite Imagery</h4>
+                    <span class="channel-badge">Channel 10.8 µm</span>
+                </div>
+                
+                <div class="view-wrapper">
+                    <!-- GIF View -->
+                    <div class="satellite-gif-view" id="infrared-gif-view">
+                        <img src="{% static 'weather/images/IR1.gif' %}" alt="Infrared Satellite Loop">
+                    </div>
+                    <!-- Windy Iframe View (Hidden) -->
+                    <div class="windy-iframe-view" id="infrared-windy-view">
+                        <iframe src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricWind=default&zoom=4&overlay=wind&product=ecmwf&level=surface&lat=20.647&lon=78.851" frameborder="0"></iframe>
+                    </div>
+                </div>
+                
+                <div class="form-check form-switch view-toggle-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="toggle-view-infrared">
+                    <label class="form-check-label" for="toggle-view-infrared">Show Live Wind Map</label>
+                </div>
+                
+                <div class="description-box">
+                    <h5>Infrared Channel (10.8 µm)</h5>
+                    <p class="mb-0">This animated loop is effective 24 hours a day, showing cloud movement and temperature changes. Colder (higher) cloud tops appear brighter, helping to identify strong storm systems day and night. Infrared imagery is particularly valuable for tracking severe weather development and monitoring cloud top temperatures.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block scripts_extra %}
+    {{ block.super }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Function to handle toggling between GIF and iframe with enhanced loading indicator
+            function setupViewToggler(toggleId, gifId, windyId) {
+                const toggleSwitch = document.getElementById(toggleId);
+                const gifView = document.getElementById(gifId);
+                const windyView = document.getElementById(windyId);
+
+                toggleSwitch.addEventListener('change', function() {
+                    if (this.checked) {
+                        // Show loading indicator
+                        const loadingIndicator = document.createElement('div');
+                        loadingIndicator.className = 'loading-indicator';
+                        loadingIndicator.innerHTML = `
+                            <div class="spinner-border loading-spinner" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3 fw-medium">Loading wind map...</p>
+                        `;
+                        
+                        windyView.parentNode.appendChild(loadingIndicator);
+                        
+                        // Show Windy Map, hide GIF
+                        gifView.style.display = 'none';
+                        windyView.style.display = 'block';
+                        
+                        // Remove loading indicator after iframe loads
+                        const iframe = windyView.querySelector('iframe');
+                        iframe.onload = function() {
+                            setTimeout(() => {
+                                const indicator = windyView.parentNode.querySelector('.loading-indicator');
+                                if (indicator) {
+                                    indicator.remove();
+                                }
+                            }, 500);
+                        };
+                    } else {
+                        // Show GIF, hide Windy Map
+                        gifView.style.display = 'block';
+                        windyView.style.display = 'none';
+                    }
+                });
+            }
+
+            // Setup the toggler for both the Visible and Infrared sections
+            setupViewToggler('toggle-view-visible', 'visible-gif-view', 'visible-windy-view');
+            setupViewToggler('toggle-view-infrared', 'infrared-gif-view', 'infrared-windy-view');
+
+            // Enhanced script to switch between content panels with smooth transitions
+            const navButtons = document.querySelectorAll('.satellite-nav-button');
+            const contentPanels = document.querySelectorAll('.content-panel');
+            
+            navButtons.forEach(button => {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    
+                    // Update active state on buttons
+                    navButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Get the content ID to show
+                    const contentIdToShow = this.getAttribute('data-content-id');
+                    
+                    // Hide all panels with fade effect
+                    contentPanels.forEach(panel => {
+                        panel.style.opacity = '0';
+                        setTimeout(() => {
+                            panel.style.display = 'none';
+                        }, 300);
+                    });
+                    
+                    // Show the target panel with fade effect
+                    const targetPanel = document.getElementById(contentIdToShow);
+                    if (targetPanel) {
+                        setTimeout(() => {
+                            targetPanel.style.display = 'block';
+                            setTimeout(() => {
+                                targetPanel.style.opacity = '1';
+                            }, 50);
+                        }, 300);
+                    }
+                });
+            });
+            
+            // Set initial opacity for smooth transitions
+            contentPanels.forEach(panel => {
+                panel.style.transition = 'opacity 0.3s ease';
+                if (panel.style.display !== 'none') {
+                    panel.style.opacity = '1';
+                } else {
+                    panel.style.opacity = '0';
+                }
+            });
+        });
+    </script>
+{% endblock scripts_extra %}
