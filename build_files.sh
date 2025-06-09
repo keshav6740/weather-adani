@@ -6,10 +6,7 @@ set -e
 # --- FIX IS HERE ---
 # Use the specific versioned pip that matches your vercel.json runtime
 echo "Installing dependencies..."
-pip3.9 install -r requirements.txt
 
-# --- AND HERE ---
-# Use the specific versioned python for consistency
 echo "Collecting static files..."
 python3.9 manage.py collectstatic --noinput --clear
 
